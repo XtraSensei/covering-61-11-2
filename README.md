@@ -1,5 +1,7 @@
 # The Covering Number $C(61,11,2)$ Is $39$
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24550537.svg)](https://doi.org/10.5281/zenodo.24550537)
+
 **Paper, Pure Lean 4 Formalization, and Standalone Integer Certificates**
 
 > **Author:** Zhiyu Xiong (University of Science and Technology of China)  
