@@ -1,0 +1,590 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{geometry}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+
+\geometry{margin=1in}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\AG}{\mathrm{AG}}
+\newcommand{\F}{\mathbb{F}}
+\DeclareMathOperator{\rank}{rank}
+
+\title{\textbf{The Covering Number $C(61,11,2)$ Is $39$, with a Max-Cut Improvement to Horsley's Covering Bound}}
+
+\author{
+  Zhiyu Xiong\\
+  \small University of Science and Technology of China, Hefei, China\\
+  \small \texttt{xzy0826@mail.ustc.edu.cn} \quad $\cdot$ \quad \url{https://github.com/XtraSensei/covering-61-11-2}
+}
+
+\date{November 26, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A $(v,k,t)$-covering design is a family of $k$-element subsets (blocks) of a $v$-element set such that every $t$-element subset is contained in at least one block, and the covering number $C(v,k,t)$ is the minimum possible number of blocks. We settle the previously open covering number $C(61,11,2) = 39$, closing the gap between Horsley's lower bound $37$ and the $39$-block upper bounds published in October~2026 (explicitly realized by the $39$-block design in \texttt{Meliwat/covering-hunt} and independently recorded on The Covering Repository). By standard Sch\"onheim recursion, this immediately raises the best tabulated lower bounds for $C(62,12,3)$ from $192$ to $202$ and for $C(63,13,4)$ from $931$ to $979$.
+
+As a self-contained theoretical warm-up, we first show that replacing the Caro--Tuza greedy deletion estimate in Horsley's generalization of Fisher's inequality with a maximum cut (Max-Cut) bipartition of the excess multigraph yields the closed-form bound
+\[
+  C(v,k,2) \ge \left\lceil \frac{v(r+2)}{k+2} \right\rceil
+\]
+whenever $v-1 = r(k-1)$ and $r < k \le 2r$. This ten-line argument improves $13$ tabulated lower bounds in the frozen La Jolla Covering Repository (and all $11$ corresponding entries in the November~2026 snapshot of The Covering Repository), including $C(61,11,2) \ge 38$, and combines with public $27$-block constructions (by Meliwat and by Canli / Quantavane) to determine a second exact value, $C(41,9,2) = 27$.
+
+To exclude $38$ blocks for $(61,11,2)$, we analyze the points of minimum degree $6$, prove that their count $a$ lies in $\{9,10,11,12\}$ with at most four per block (and at most three when $a \le 11$), classify all $215$ non-isomorphic low-point skeletons (yielding $251$ degree-profile instances), and exclude the affine plane $\AG(2,3)$ by a purely combinatorial parity argument. Formally, Lean~4.36.0 (pure kernel, using only standard mathematical axioms, with zero \texttt{sorry} and zero \texttt{native\_decide}) verifies the $39$-block upper bound, all structural reductions, the exhaustive $215$-skeleton catalogue, the $\AG(2,3)$ exclusion, the elimination of $170$ skeletons—proving that any hypothetical $38$-block covering must realize one of $45$ specified skeletons—and the soundness of every certificate primitive. The remaining exclusions rely on an isolated, standard-library-only Python exact-integer verifier: across the full catalogue of $251$ degree-profile instances, the verifier checks computational exclusions for $250$ instances and accounts for the affine-plane instance by reference to the separate Lean theorem. The exact value $C(61,11,2)=39$ follows from this combined proof.
+\end{abstract}
+
+\noindent\textbf{Keywords:} Covering designs, covering numbers, Fisher's inequality, Max-Cut, integer Farkas certificates, Lean~4 formalization.
+
+\noindent\textbf{MSC 2020:} 05B40, 05B05, 68V15.
+
+\section{Introduction}
+
+Let $v \ge k \ge t \ge 1$ be integers. A \emph{$(v,k,t)$-covering design} is a finite family $\mathcal{B}$ of $k$-element subsets (called \emph{blocks}, repetitions allowed) of a $v$-element point set $V$ such that every $t$-element subset of $V$ is contained in at least one block of $\mathcal{B}$. The \emph{covering number} $C(v,k,t)$ is the minimum cardinality $|\mathcal{B}|$ of a $(v,k,t)$-covering design.
+
+The foundational general lower bound on $C(v,k,t)$ is the Sch\"onheim bound~\cite{Schonheim1964},
+\begin{equation}\label{eq:schonheim}
+  C(v,k,t) \ge \left\lceil \frac{v}{k} C(v-1,k-1,t-1) \right\rceil,
+\end{equation}
+which for $t=2$ iterates to $C(v,k,2) \ge \lceil \frac{v}{k}\lceil \frac{v-1}{k-1}\rceil \rceil$. When $k$ is relatively large compared to $v$—specifically when $v-1 < k(k-1)$, outside the regime of classical symmetric designs—the Sch\"onheim bound is often loose. Extending Bose's linear-algebraic proof of Fisher's inequality~\cite{Fisher1940,Bose1949}, Horsley~\cite{Horsley2017} established strong general lower bounds on $C(v,k,2)$ by analyzing $m$-independent sets in the \emph{excess multigraph} of a covering.
+
+For the parameters $(v,k,t) = (61,11,2)$, the Sch\"onheim bound gives $C(61,11,2) \ge \lceil 61 \cdot 6 / 11 \rceil = 34$. Horsley's basic bound~\cite[Theorem~1]{Horsley2017} raises this to $\lceil 61 \cdot 7 / 12 \rceil = 36$, and his refined bound~\cite[Theorem~4(a)]{Horsley2017} raises it to $\lceil 6832/187 \rceil = 37$. For nearly two decades, the best known upper bound in Daniel Gordon's La Jolla Covering Repository (LJCR)~\cite{GordonLJCR} was $40$ (found by Michael Dambmann in January~2009 via simulated annealing). In October~2026, explicit $39$-block constructions lowered the upper bound to $39$: the $39$-block design verified in this paper comes from \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026} (committed October~17, 2026, found via C simulated annealing), and a $39$-block upper bound was independently recorded on Giovanni Acerbi's Covering Repository~\cite{AcerbiCR} on October~23, 2026 (attributed to \texttt{Hossein F} / Farahani~\cite{Farahani2026}). Thus the status in public tables stood at $37 \le C(61,11,2) \le 39$.
+
+\subsection{Main results}
+
+Our first result is a short, completely general improvement to Horsley's bound in the exact-divisibility regime $d = 0$, obtained by replacing the Caro--Tuza greedy $m$-independent set bound with a maximum cut (Max-Cut) partition.
+
+\begin{theorem}\label{thm:maxcut}
+  Let $k \ge 3$ and $r \ge 2$ be integers satisfying $r < k \le 2r$, and let $v = r(k-1) + 1$. Then
+  \begin{equation}\label{eq:maxcut}
+    C(v,k,2) \ge \left\lceil \frac{v(r+2)}{k+2} \right\rceil.
+  \end{equation}
+\end{theorem}
+
+Theorem~\ref{thm:maxcut} immediately improves $13$ lower bounds tabulated in the frozen March~2026 LJCR archive (and all $11$ corresponding entries in the November~26, 2026 snapshot of The Covering Repository; see Table~\ref{tab:maxcut}). In particular, for $(v,k,r) = (61,11,6)$ it gives $C(61,11,2) \ge \lceil 488/13 \rceil = 38$, and for $(v,k,r) = (41,9,5)$ it gives $C(41,9,2) \ge \lceil 287/11 \rceil = 27$. Combined with the explicit $27$-block $(41,9,2)$-covering designs published by Meliwat~\cite{Meliwat2026} and by Canli (Quantavane, October~23, 2026)~\cite{Canli2026}, this settles an exact covering number at once:
+
+\begin{corollary}\label{cor:41}
+  $C(41,9,2) = 27$.
+\end{corollary}
+
+As noted in Remark~\ref{rem:barrier}, inequality~\eqref{eq:S_size} in Theorem~\ref{thm:maxcut} does not exclude $b = 38$ for $(61,11,2)$. Our main result closes this final unit gap via a combined structural, combinatorial, and exact integer-certificate proof.
+
+\begin{theorem}\label{thm:main}
+  $C(61,11,2) = 39$.
+\end{theorem}
+
+Applying the Sch\"onheim recursion~\eqref{eq:schonheim} twice to Theorem~\ref{thm:main} yields substantial cascading improvements to higher-strength covering numbers whose previous best tabulated lower bounds in both LJCR~\cite{GordonLJCR} and The Covering Repository~\cite{AcerbiCR} were $192$ and $931$, respectively:
+
+\begin{corollary}\label{cor:cascade}
+  $C(62,12,3) \ge \left\lceil \frac{62 \cdot 39}{12} \right\rceil = 202$ and $C(63,13,4) \ge \left\lceil \frac{63 \cdot 202}{13} \right\rceil = 979$.
+\end{corollary}
+
+\subsection{Proof overview and verification architecture}
+
+To make the proof of Theorem~\ref{thm:main} transparent and easily auditable, we organize it around the points of minimum degree $6$ (called \emph{low points}) in a hypothetical $38$-block $(61,11,2)$-covering:
+\begin{enumerate}
+  \item \textbf{Structural reduction (Section~\ref{sec:structure}).} Every low point has zero excess: it meets each of the other $60$ points in \emph{exactly one} block. A global seat count shows there are $a \ge 9$ low points and total excess $E = a - 9$ above degree $7$. By local capacity inequalities outside a block, reduced order-$5$ Latin square enumeration, a bipartite edge-intersection lemma, and $43$ integer pricing certificates covering $567$ local block-size histograms, we narrow the parameters to $a \in \{9,10,11,12\}$ with at most four low points per block (at most three for $a \le 11$), leaving exactly five possible degree profiles.
+  \item \textbf{Skeleton classification (Section~\ref{sec:skeletons}).} Recording only the intersections of the $38$ blocks with the $a$ low points defines a \emph{low-point skeleton}. By exhaustive enumeration for $a=9$ and certified single-point growth for $a \in \{10,11,12\}$ (independently cross-checked by graph-triangle decomposition), every hypothetical $38$-block cover must realize one of exactly $215$ non-isomorphic skeletons, giving $251$ degree-profile instances.
+  \item \textbf{The affine plane $\AG(2,3)$ (Section~\ref{sec:affine}).} The most symmetric skeleton ($a=9$, twelve triples forming the lines of $\AG(2,3)$) is eliminated by a self-contained hand proof using excess saturation and $\F_2$-linearity over $\F_3^2$.
+  \item \textbf{Exact integer certificates (Section~\ref{sec:certificates}).} Across the $251$ instances, $170$ skeletons are already ruled out directly inside the Lean~4 kernel (including $\AG(2,3)$), leaving $45$ skeletons. The $250$ non-affine instances are refuted by exact arbitrary-precision integer certificates—signed seat pricings, anchored pricings, certified conflict graphs, orbit-summed quadratic moment relaxations (Farkas duals), and replayable integer interval trees with residual-block pricings—with zero floating-point solver trust at verification time.
+\end{enumerate}
+
+A major focus of this work is machine-checkable trustworthiness. In Section~\ref{sec:verification} we specify the exact verification boundary: Lean~4.36.0 (pure kernel, using only \texttt{propext}, \texttt{Classical.choice}, and \texttt{Quot.sound}; zero \texttt{sorry}, zero custom axioms, and zero \texttt{native\_decide}) verifies the $39$-block upper bound, all of Sections~\ref{sec:structure}, \ref{sec:skeletons}, and~\ref{sec:affine}, the reduction to $45$ specified skeletons (\texttt{Cover61.cover\_remaining}), the containment of any surviving compatible support of \texttt{9-37.0} in one of $121$ representatives (\texttt{Cover61.Supports.Nine37.exhaustive}), and the mathematical soundness of every certificate primitive. The remaining exclusions rely on an isolated, standard-library-only Python exact-integer verifier (\texttt{python -I -B -S integer/verify\_all.py}): across the full catalogue of $251$ degree-profile instances, the verifier matches all $215$ Lean skeleton tables index-for-index, checks computational exclusions for $250$ instances, and accounts for the affine-plane instance by reference to the separate Lean theorem.
+
+\section{A Max-Cut Improvement to Horsley's Covering Bound}\label{sec:maxcut}
+
+We begin by proving Theorem~\ref{thm:maxcut}, which explains why $C(61,11,2) \ge 38$ is already an elementary consequence of Bose--Horsley linear algebra combined with a maximum cut, and shows why pushing from $38$ to $39$ requires genuinely finer structural methods.
+
+\begin{proof}[Proof of Theorem~\ref{thm:maxcut}]
+Let $\mathcal{B} = (B_1,\dots,B_b)$ be a $(v,k,2)$-covering design on $V = \{1,\dots,v\}$ with $v = r(k-1) + 1$ and $r < k \le 2r$. Let $M \in \{0,1\}^{v \times b}$ be its point--block incidence matrix. For each point $u \in V$, let $r_u = \sum_{j=1}^b M_{u,j}$ be its degree, and for distinct $u,w \in V$, let $\lambda_{uw} = (MM^\mathsf{T})_{uw} \ge 1$ be the number of blocks containing $\{u,w\}$. Define the nonnegative integer \emph{excess} $\mu_{uw} = \lambda_{uw} - 1 \ge 0$.
+
+Counting pairs incident to a fixed point $u$ gives $\sum_{w \ne u} \lambda_{uw} = (k-1)r_u$, hence
+\begin{equation}\label{eq:excess_deg}
+  \sum_{w \ne u} \mu_{uw} = (k-1)r_u - (v-1) = (k-1)(r_u - r).
+\end{equation}
+In particular, $r_u \ge r$ for every $u \in V$. Partition $V$ into
+\[
+  V_0 = \{u \in V : r_u = r\}, \qquad V_1 = \{u \in V : r_u = r+1\}, \qquad V_{\ge 2} = \{u \in V : r_u \ge r+2\},
+\]
+with sizes $v_0, v_1, v_{\ge 2}$ satisfying $v_0 + v_1 + v_{\ge 2} = v$. Summing $r_u - r$ over $V$ yields
+\begin{equation}\label{eq:deg_budget}
+  v_1 + 2v_{\ge 2} \le \sum_{u \in V}(r_u - r) = kb - rv.
+\end{equation}
+
+By~\eqref{eq:excess_deg}, every $u \in V_0$ satisfies $\mu_{uw} = 0$ for all $w \ne u$, while every $u \in V_1$ satisfies $\sum_{w \in V_1 \setminus \{u\}} \mu_{uw} \le \sum_{w \ne u} \mu_{uw} = k - 1$. Now choose a bipartition $V_1 = A \sqcup B$ maximizing the cut weight $\sum_{u \in A,\, w \in B} \mu_{uw}$. For every $u \in A$, moving $u$ to $B$ cannot increase the cut weight, so $\sum_{w \in A \setminus \{u\}} \mu_{uw} \le \sum_{w \in B} \mu_{uw}$. Adding the left-hand side to both sides gives
+\[
+  2\sum_{w \in A \setminus \{u\}} \mu_{uw} \le \sum_{w \in V_1 \setminus \{u\}} \mu_{uw} \le k - 1 \implies \sum_{w \in A \setminus \{u\}} \mu_{uw} \le \left\lfloor \frac{k-1}{2} \right\rfloor \le r - 1,
+\]
+where the last inequality uses $k \le 2r$. The identical bound holds for every $u \in B$.
+
+Let $S_1 \in \{A, B\}$ be the larger side, so $|S_1| \ge v_1/2$, and set $S = V_0 \cup S_1$. Then
+\begin{equation}\label{eq:S_size}
+  |S| = v_0 + |S_1| \ge (v - v_1 - v_{\ge 2}) + \frac{v_1}{2} = v - \frac{v_1 + 2v_{\ge 2}}{2} \ge v - \frac{kb - rv}{2}
+\end{equation}
+by~\eqref{eq:deg_budget}. Consider the symmetric matrix $E = MM^\mathsf{T} - J_v$ (where $J_v$ is the $v \times v$ all-ones matrix) and its $|S| \times |S|$ principal submatrix $E_S$:
+\begin{itemize}
+  \item For $u \in V_0$, $(E_S)_{uu} = r - 1 \ge 1$ and $(E_S)_{uw} = \mu_{uw} = 0$ for all $w \in S \setminus \{u\}$.
+  \item For $u \in S_1$, $(E_S)_{uu} = r$ and $\sum_{w \in S \setminus \{u\}} (E_S)_{uw} = \sum_{w \in S_1 \setminus \{u\}} \mu_{uw} \le r - 1$.
+\end{itemize}
+Therefore, for any nonzero vector $x \in \mathbb{R}^{|S|}$, using $2|x_u x_w| \le x_u^2 + x_w^2$ and $\mu_{uw} \ge 0$,
+\[
+  x^\mathsf{T} E_S x = \sum_{u \in S} (E_S)_{uu} x_u^2 + \sum_{\substack{u,w \in S \\ u \ne w}} \mu_{uw} x_u x_w
+  \ge \sum_{u \in S} \Biggl((E_S)_{uu} - \sum_{w \in S \setminus \{u\}} \mu_{uw}\Biggr) x_u^2 \ge \sum_{u \in S} x_u^2 > 0.
+\]
+Hence $E_S$ is positive definite. Since $J_{|S|}$ is positive semidefinite, $(MM^\mathsf{T})_S = E_S + J_{|S|}$ is also positive definite and therefore has full rank $|S|$. Thus
+\[
+  b \ge \rank(M) = \rank(MM^\mathsf{T}) \ge \rank\bigl((MM^\mathsf{T})_S\bigr) = |S| \ge v - \frac{kb - rv}{2}.
+\]
+Rearranging gives $(k+2)b \ge (r+2)v$, i.e., $b \ge \lceil v(r+2)/(k+2) \rceil$.
+\end{proof}
+
+\begin{remark}[Extension to $q$-cuts]
+More generally, if $v = r(k-1) + 1$ and $r < k \le qr$ for an integer $q \ge 2$, taking a maximum $q$-cut $V_1 = A_1 \sqcup \dots \sqcup A_q$ yields internal excess weight at most $\lfloor (k-1)/q \rfloor \le r - 1$ inside every part. Picking the largest part gives $|S_1| \ge v_1/q$. Since $2(q-1)/q \ge 1$ for all $q \ge 2$, we obtain
+\[
+  |S| \ge v - \frac{q-1}{q} v_1 - v_{\ge 2} \ge v - \frac{q-1}{q}(v_1 + 2v_{\ge 2}) \ge v - \frac{q-1}{q}(kb - rv),
+\]
+which implies $C(v,k,2) \ge \left\lceil \frac{v((q-1)r + q)}{(q-1)k + q} \right\rceil$.
+\end{remark}
+
+\begin{remark}[Comparison with Horsley~\cite{Horsley2017} and scope of~\eqref{eq:S_size}]\label{rem:barrier}
+In~\cite{Horsley2017}, Horsley bounds the size of an $r$-independent set in the excess multigraph via the Caro--Tuza greedy deletion bound $f_r(k-1) = (r+1)/(2k)$ (which equals $7/22 \approx 0.318$ for $C(61,11,2)$), yielding $C(61,11,2) \ge \lceil 6832/187 \rceil = 37$. Replacing $f_r(k-1)$ by the Max-Cut fraction $1/2$ raises the lower bound by $1$ on $13$ parameter sets in the frozen LJCR archive~\cite{GordonLJCR} (and all $11$ of those entries present in the November~26, 2026 snapshot of The Covering Repository~\cite{AcerbiCR}), summarized in Table~\ref{tab:maxcut}. In particular, $(41,9,2)$ meets the $27$-block upper bounds of~\cite{Meliwat2026,Canli2026}, proving Corollary~\ref{cor:41}.
+
+For $C(61,11,2)$ at $b = 38$, inequality~\eqref{eq:S_size} gives only $|S| \ge 35 \le 38$, so Theorem~\ref{thm:maxcut} does not exclude $38$ blocks. Pushing the lower bound from $38$ to $39$ is the subject of Sections~\ref{sec:structure}--\ref{sec:certificates}.
+\end{remark}
+
+\begin{table}[t]
+\centering
+\caption{All $13$ parameter sets in the frozen March~2026 LJCR archive ($v \le 100$, $k \le 25$, $t=2$) with $v = r(k-1)+1$ and $r < k \le 2r$ where Theorem~\ref{thm:maxcut} strictly improves the previously tabulated lower bound (which equals Horsley's bound~\cite[Theorem~4(a)]{Horsley2017} in all $13$ cases). Best known upper bounds reflect the frozen LJCR archive~\cite{GordonLJCR} together with a November~26, 2026 snapshot of The Covering Repository~\cite{AcerbiCR}, \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026}, and Quantavane~\cite{Canli2026}. Bold entries mark exact covering numbers settled in this paper.}
+\label{tab:maxcut}
+\small
+\begin{tabular}{@{}cccccccc@{}}
+\toprule
+$(v,k,2)$ & $r$ & Sch\"onheim & Horsley~\cite{Horsley2017} & Theorem~\ref{thm:maxcut} & Best UB & Status \\
+\midrule
+$(36,8,2)$  & $5$ & $23$ & $25$ & $26$ & $27$ & $26 \le C \le 27$ \\
+$\mathbf{(41,9,2)}$  & $5$ & $23$ & $26$ & $\mathbf{27}$ & $\mathbf{27}$\textsuperscript{a} & $\mathbf{C = 27}$ (Cor.~\ref{cor:41}) \\
+$(46,10,2)$ & $5$ & $23$ & $26$ & $27$ & $28$ & $27 \le C \le 28$ \\
+$(55,10,2)$ & $6$ & $33$ & $36$ & $37$ & $39$ & $37 \le C \le 39$ \\
+$\mathbf{(61,11,2)}$ & $6$ & $34$ & $37$ & $38$ & $\mathbf{39}$\textsuperscript{b} & $\mathbf{C = 39}$ (Thm.~\ref{thm:main}) \\
+$(71,11,2)$ & $7$ & $46$ & $49$ & $50$ & $52$ & $50 \le C \le 52$ \\
+$(81,11,2)$ & $8$ & $59$ & $62$ & $63$ & $66$ & $63 \le C \le 66$ \\
+$(67,12,2)$ & $6$ & $34$ & $38$ & $39$ & $40$ & $39 \le C \le 40$ \\
+$(78,12,2)$ & $7$ & $46$ & $50$ & $51$ & $53$ & $51 \le C \le 53$ \\
+$(89,12,2)$ & $8$ & $60$ & $63$ & $64$ & $67$ & $64 \le C \le 67$ \\
+$(85,13,2)$ & $7$ & $46$ & $50$ & $51$ & $53$\textsuperscript{c} & $51 \le C \le 53$ \\
+$(97,13,2)$ & $8$ & $60$ & $64$ & $65$ & $68$\textsuperscript{c} & $65 \le C \le 68$ \\
+$(92,14,2)$ & $7$ & $46$ & $51$ & $52$ & $53$ & $52 \le C \le 53$ \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\footnotesize
+\textsuperscript{a}Explicit $27$-block constructions in \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026} and Canli (Quantavane, Oct.~23, 2026)~\cite{Canli2026}; LJCR lists $28$.
+\textsuperscript{b}Explicit $39$-block construction in \texttt{Meliwat/covering-hunt} (Oct.~17, 2026)~\cite{Meliwat2026}; independent $39$-block record on The Covering Repository (Oct.~23, 2026)~\cite{AcerbiCR}.
+\textsuperscript{c}November~26, 2026 snapshot of The Covering Repository~\cite{AcerbiCR} (LJCR lists $54$ and $69$).
+\end{table}
+
+\section{Structural Reduction of a Hypothetical 38-Block Cover}\label{sec:structure}
+
+To prove Theorem~\ref{thm:main}, note first that the upper bound $C(61,11,2) \le 39$ follows directly from the explicit $39$-block construction in \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026} reproduced in Appendix~\ref{app:cover39}; every block has $11$ distinct elements of $\{1,\dots,61\}$ and the union of pairs across all $39$ blocks has cardinality $1830 = \binom{61}{2}$ (verified formally by \texttt{Cover61.exists39}). Since any covering with fewer than $38$ blocks can be padded with arbitrary $11$-element blocks to size $38$ (\texttt{Cover61.extend\_cover}), it suffices to assume for contradiction that there exists a $38$-block $(61,11,2)$-covering design $\mathcal{B} = (B_1,\dots,B_{38})$ on $V$ ($|V| = 61$).
+
+We adopt the following notation throughout Sections~\ref{sec:structure}--\ref{sec:certificates}. Write $r_x$ for the degree of $x \in V$ and $m_{xy}$ for the number of blocks containing $\{x,y\}$. Every point satisfies $r_x \ge 6$ and the excess identity
+\begin{equation}\label{eq:repeat}
+  \sum_{y \ne x} (m_{xy} - 1) = 10(r_x - 6).
+\end{equation}
+Call a point $x$ with $r_x = 6$ a \emph{low point}, and let $L = \{x \in V : r_x = 6\}$ with $a = |L|$. Any low point meets every other point of $V$ in \emph{exactly one} block. Define the global excess above degree $7$ by $E = \sum_{x \in V} \max(r_x - 7, 0)$. Since the $38$ blocks provide $38 \times 11 = 418$ incidences while $61 \times 7 = 427$,
+\begin{equation}\label{eq:E}
+  E = a - 9 \qquad (\text{hence } a \ge 9).
+\end{equation}
+Let $t_j = |B_j \cap L|$ be the number of low points in block $B_j$, and let $N_t$ be the number of blocks with $t_j = t$. Counting incidences and ordered pairs of low points gives
+\begin{equation}\label{eq:moments}
+  \sum_{j=1}^{38} t_j = 6a, \qquad \sum_{j=1}^{38} t_j(t_j - 1) = a(a - 1).
+\end{equation}
+For any fixed $x \in L$, the six blocks containing $x$ satisfy $\sum_{B_j \ni x} t_j = a + 5$. Moreover, any non-low point can attend at most $\lfloor a/t \rfloor$ blocks containing $t$ low points, since the low points in those blocks must be pairwise disjoint.
+
+\subsection{Local capacity outside a block and \texorpdfstring{$a \le 20$}{a <= 20}}\label{sec:t_le_5}
+
+Fix a block $B \in \mathcal{B}$, let $G = B \cap L$ with $t = |G|$, and let $H = B \setminus L$ (so $|H| = 11 - t$ and every point in $H$ has degree at least $7$). Write $d = \sum_{x \in H} (r_x - 7) \le E$. Each point of $G$ appears in $5$ other blocks; these $5t$ blocks are pairwise distinct (otherwise two points of $G$ would meet twice) and disjoint from $H$ (otherwise a point of $G$ and a point of $H$ would meet twice). Let $J$ be the set of the remaining $37 - 5t$ blocks. Every pair between $H$ and $V \setminus B$ ($50$ points) must be covered inside $J$. Writing $s_j = |B_j \cap H|$ and $f(s) = s(11 - s)$, we obtain
+\begin{equation}\label{eq:local_cap}
+  \sum_{j \in J} s_j = 6|H| + d, \qquad \sum_{j \in J} f(s_j) \ge 50|H|.
+\end{equation}
+Since $f(s) \le 30$ for all integers $s$, we cannot have $t \ge 8$ ($|J| < 0$), $t = 7$ ($2 \cdot 30 < 200$), or $t = 6$ ($7 \cdot 30 < 250$). Hence $t_j \le 5$ for every block, and $\sum_{B_j \ni x} t_j = a + 5 \le 30$ implies $a \le 25$.
+
+\begin{lemma}[Forced groups for $t=5$ and $a \le 20$]\label{lem:at_most_20}
+If a block $B$ has $t = 5$ low points, then every block meeting both $L$ and $H$ contains all $6$ points of $H$. Letting $g$ be the number of such \emph{whole-group blocks}, we have $a \le 5g$, $2g \le d$, and $3(g+1) \le 2d$. Consequently, $a \le 20$.
+\end{lemma}
+
+\begin{proof}
+Every low point $z \in L \setminus G$ uses $5$ of its $6$ blocks to meet the $5$ points of $G$ in the $25$ blocks outside $B \cup J$, leaving only $1$ block (in $J$) to meet all $6$ points of $H$. Thus any block meeting both $L$ and $H$ contains the entire $6$-set $H$. Each low point belongs to exactly one whole-group block, so $a \le 5g$, and at least $g - 1$ of the $12$ blocks in $J$ satisfy $s_j = 6$. Checking $s \in \{0,\dots,6\}$ directly confirms
+\[
+  f(s) + 12\mathbf{1}_{s=6} \le 6s + 6 \quad\text{and}\quad f(s) + 6\mathbf{1}_{s=6} \le 4s + 12.
+\]
+Summing over $j \in J$ and applying~\eqref{eq:local_cap} yields $300 + 12(g-1) \le 6(36+d) + 72$ and $300 + 6(g-1) \le 4(36+d) + 144$, i.e., $2g \le d$ and $3(g+1) \le 2d$.
+
+If $a > 15$, then $g \ge 4$. Each point of $H$ meets its $5$ companions in $H$ at least $4$ times across the $g$ whole-group blocks, incurring at least $15 > 10$ excess meetings; by~\eqref{eq:repeat}, every point of $H$ has degree at least $8$, consuming at least $6$ units of $E$. On the other hand, $t(t-1) \le 3t + 5\mathbf{1}_{t=5}$ for $0 \le t \le 5$ combined with~\eqref{eq:moments} gives $5N_5 \ge a(a-19)$. Double-counting incidences of excess above degree $7$ across all $5$-low-point blocks gives $6N_5 \le \lfloor a/5 \rfloor (a - 9)$. Substituting $a \in \{21,22,23,24,25\}$ violates $5N_5 \ge a(a-19)$ in every case. Hence $a \le 20$.
+\end{proof}
+
+\subsection{Eliminating 5-low-point blocks}\label{sec:no_five}
+
+\begin{proposition}\label{prop:t_le_4}
+Every block $B_j$ contains at most $4$ low points ($t_j \le 4$).
+\end{proposition}
+
+\begin{proof}
+Suppose $B$ has $t = 5$ low points. Combining $9 \le a \le 20$, $a \le 5g$, $d \le a - 9$, $2g \le d$, and $3(g+1) \le 2d$ leaves only three possibilities for $g$:
+\begin{itemize}
+  \item $g = 3$ ($a = 15$, $d = 6$);
+  \item $g = 4$ ($17 \le a \le 20$, $d \ge 8$);
+  \item $g = 5$ ($a \in \{19,20\}$, $d \ge 10$).
+\end{itemize}
+If $a = 20$, then $5N_5 \ge 20$ forces $N_5 \ge 4$. Any two $5$-low-point blocks sharing a non-low point must have the identical $6$-set $H$ (by Lemma~\ref{lem:at_most_20}), while two disjoint $H$-sets would consume at least $12 > E = 11$ units of excess. Thus all $N_5 \ge 4$ such blocks share the same $H$ and partition $L$ into four $5$-sets, forcing $g = 4$.
+
+\emph{Case $g = 5$ ($a = 19$, $d = 10$).} Fix four $s_j = 6$ in $J$; the remaining eight $s_j$ sum to $22$, and concavity of $f$ achieves the required $300$ only when those eight values are six $3$'s and two $2$'s. Assign prices $3, 6, 12$ to appearances in blocks with $s_j = 2, 3, 6$, respectively. Any point outside $B$ must meet all $6$ points of $H$ and hence pays at least $12$ (a point avoiding $s_j = 6$ and using at most one $s_j = 3$ block needs at least two $s_j = 2$ blocks, paying $6 + 3 + 3 = 12$). The $50$ points outside $B$ demand at least $600$, whereas the blocks supply only $2 \cdot 9 \cdot 3 + 6 \cdot 8 \cdot 6 + 4 \cdot 5 \cdot 12 = 582$, a contradiction.
+
+For $g \in \{3,4\}$, view the $25$ blocks meeting $G$ outside $B$ as a $5 \times 5$ grid of cells. Each low point outside $G$ selects $5$ cells outside its whole-group block; low points in the same whole-group block select disjoint $5$-cell sets, while low points in different groups meet in exactly one cell. Whenever a group has size $4$, the $5$ remaining uncovered cells form a \emph{virtual fifth line} that meets every line of another group once; two virtual lines also intersect once, since $25 - 20 - 20 + 16 = 1$.
+
+Exhaustively enumerating all $56$ reduced Latin squares of order $5$ (first row and column equal to $0,1,2,3,4$) and testing all $120$ column permutations per square yields the following exact finite fact (verified in Lean as \texttt{Cover61.LatinFive.reduced\_square\_survey} and \texttt{transversal\_census}): $50$ squares have exactly $3$ transversals and $6$ squares have exactly $15$ transversals; the $15$ transversals always partition into three classes of $5$ pairwise disjoint transversals; and across all $180$ pairs of a square and two disjoint transversals $X, Y$, at most $2$ transversals through any fixed cell intersect both $X$ and $Y$ in a single cell.
+
+\emph{Case $g = 4$ ($17 \le a \le 20$).} At least three of the four groups have size $\ge 4$ (and hence complete to $5$ lines via virtual lines), while the fourth has size $\ge 2$. The first three groups define rows, columns, and symbols of an order-$5$ Latin square, and the fourth supplies two disjoint transversals $X, Y$. Call any point outside $H \cup L$ that enters a whole-group block an \emph{exception}; since the $4$ whole-group blocks have $4(11-6) - a = 20 - a \le 3$ remaining seats, there are at most $3$ exceptions. Every other outsider (an \emph{ordinary point}) must choose $5$ grid cells forming a transversal meeting each of $X$ and $Y$ once. If $4$ ordinary points chose the same transversal, each would incur at least $3 \cdot 4 = 12 > 10$ excess meetings and thus have degree $\ge 8$, impossible because the excess budget outside $H$ is $E - d \le 3$. Thus at most $3$ ordinary points use any transversal, so at most $2 \cdot 3 = 6$ ordinary points sit in any cell. Each cell holds at most $4$ low points (at most one per group) and no points of $H$, leaving at least $11 - 4 - 6 = 1$ seat for an exception in \emph{every} one of the $25$ cells. Since each exception meets the $5$ points of $G$ once, at most $3$ exceptions fill at most $15 < 25$ cells, a contradiction.
+
+\emph{Case $g = 3$ ($a = 15$, $d = 6$).} Here all three whole-group blocks are full ($5 + 6 = 11$), $E = d = 6$, and all $40$ outsiders have degree $7$. Each outsider chooses a transversal of the order-$5$ Latin square in the $25$-cell grid together with $2$ of the $10$ remaining blocks in $J$. Since $H$ appears $30$ times across those $10$ blocks and $10 \cdot 3 \cdot 8 = 240 = 6 \cdot 40$, equality holds in~\eqref{eq:local_cap}: each of the $10$ blocks has $3$ points of $H$ and $8$ outsiders, and each outsider's two blocks carry complementary $3$-subsets of $H$. Viewing these $10$ blocks as vertices and the $40$ outsiders as edges (multi-edges allowed) gives an $8$-regular bipartite graph (with complementary $3$-subsets on opposite sides). Each transversal holds at most $3$ outsiders (as $E - d = 0$), ruling out the $3$-transversal squares ($9 < 40$) and forcing the $15$-transversal case. The largest of the three disjoint-transversal classes contains at least $\lceil 40/3 \rceil = 14$ outsiders. Outsiders on distinct transversals of this class cannot meet in the grid, so their edges in the bipartite graph must intersect. Because a bipartite graph is triangle-free, pairwise intersecting edges would form a star at a single vertex of degree $8 < 14$. Hence some two edges $e_1, e_2$ are disjoint and must belong to the same transversal (size $\le 3$). At least $11$ outsiders lie on the other four transversals of the class, and each of their edges must hit both $e_1$ and $e_2$. In a bipartite graph, at most two edges connect $e_1$ and $e_2$, and those two edges are disjoint. Since $11$ outsiders span at least $\lceil 11/3 \rceil = 4$ transversals, the non-same-transversal relation on them is connected, forcing all $11$ onto the \emph{same} connecting edge—whose endpoints again have degree only $8 < 11$, a contradiction.
+\end{proof}
+
+\subsection{4-low-point blocks and local integer pricing}\label{sec:four_low}
+
+Now suppose a block $B$ has $t = 4$ low points, so $|H| = 7$ and $|J| = 17$. Every low point outside $B$ uses $4$ blocks to meet $G$ and its remaining $2$ blocks in $J$ to partition $H$ into complementary subsets. Whenever $a \ge 9$, there are $a - 4 \ge 5$ low points outside $B$, so at least $\lceil 5/4 \rceil = 2$ blocks in $J$ satisfy $s_j \ge 4$.
+
+\begin{lemma}[Parity obstruction for $d=0$]\label{lem:parity_d0}
+If $B$ has $t = 4$ low points and $a \ge 9$, then $d \ge 1$. In particular, when $a = 9$ (so $E = 0$), every block has $t_j \le 3$.
+\end{lemma}
+
+\begin{proof}
+Each of the $50$ points outside $B$ meets all $7$ points of $H$ inside $J$. Rounding each block's contribution $s_j$ up to an even integer $s_j + (s_j \bmod 2)$ makes the sum at least $8$ for every point outside $B$. Summing over the $50$ points gives
+\[
+  400 \le \sum_{j \in J} \bigl(s_j + (s_j \bmod 2)\bigr)(11 - s_j).
+\]
+For every integer $s \in \{0,\dots,7\}$, direct checking verifies
+\[
+  8f(s) + \bigl(s + (s \bmod 2)\bigr)(11 - s) + 34\mathbf{1}_{s \ge 4} \le 62s + 38.
+\]
+Summing over the $17$ blocks of $J$ with $d = 0$ ($\sum s_j = 42$, $\sum f(s_j) \ge 350$, and at least two $s_j \ge 4$) yields $3268 \le 8\cdot 350 + 400 + 68 \le 62\cdot 42 + 17\cdot 38 = 3250$, a contradiction.
+\end{proof}
+
+To bound $d$ further when there are $R \in \{5,7,8\}$ specified low points outside $B$, write $r_x = 7 + e_x$ for $x \in H$ (so $\sum_{x \in H} e_x = d$). Each $x \in H$ appears $6 + e_x$ times in $J$ and spends $s_j - 1$ units of excess budget in each block $B_j \in J$ containing $x$ (since $x$ already met all other points of $H$ in $B$). Let $w_C$ be the number of blocks in $J$ intersecting $H$ in $C \subseteq H$, and let $l_C$ ($|C| \le 3$) be the number of the $R$ external low points using the complementary pair $\{C, H \setminus C\}$. Writing $n_s = \sum_{|C|=s} w_C$, we have $\sum_{|C| \le 3} l_C = R$, $l_C \le 4w_C$, $l_C \le n_{7-|C|}w_C$ (and symmetrically for $H \setminus C$), and $\sum_{|C|=s} l_C \le \min(4n_s, 4n_{7-s}, n_s n_{7-s})$. Given any nonnegative integer weights $u_x$ ($x \in H$) and positive integer divisor $k$, assign price $p_C = \lceil \sum_{x \in C} u_x / k \rceil$ to block type $C$. Every outsider must cover $H$ and hence pays at least $p_H$, giving
+\begin{equation}\label{eq:four_price}
+  \sum_{C \subseteq H} w_C(11 - |C|)p_C - \sum_{|C| \le 3} l_C(p_C + p_{H \setminus C}) \ge (50 - R)p_H.
+\end{equation}
+Symmetrizing over permutations of points in $H$ with equal $e_x$ merges variables without assuming symmetry of the underlying cover. Enumerating all nondecreasing $17$-tuples $(s_1,\dots,s_{17}) \in \{0,\dots,7\}^{17}$ with $\sum s_j = 42 + d$ and $\sum f(s_j) \ge 350$ produces $567$ histograms across the five $(R, e)$ profiles in Table~\ref{tab:four_local}. Exactly $43$ integer linear combinations of~\eqref{eq:four_price}, the incidence counts, excess budgets~\eqref{eq:repeat}, and complementary capacities yield strict integer contradictions for all $567$ histograms—formally verified inside the Lean~4 kernel (\texttt{Cover61.LocalRows.FourCase0}--\texttt{FourCase4} and \texttt{FourView.rejected}).
+
+\begin{table}[t]
+\centering
+\caption{The $567$ local $17$-block histograms for a $4$-low-point block refuted by $43$ Lean-verified integer pricing certificates.}
+\label{tab:four_local}
+\small
+\begin{tabular}{@{}clrr@{}}
+\toprule
+External low points $R$ & Nonzero $e_x$ in $H$ & Admissible histograms & Surviving assignments \\
+\midrule
+$5$ & $(1)$           & $31$  & $0$ \\
+$7$ & $(2)$           & $86$  & $0$ \\
+$7$ & $(1,1)$         & $86$  & $0$ \\
+$8$ & $(3)$           & $182$ & $0$ \\
+$8$ & $(2,1)$         & $182$ & $0$ \\
+\midrule
+\textbf{Total} & $5$ profiles & $\mathbf{567}$ & $\mathbf{0}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Thus $R \ge 5$ excludes $d \in \{0,1\}$, $R \ge 7$ excludes $d = 2$ (so $d \ge 3$), and $R \ge 8$ with $d = 3$ forces $H$ to contain three distinct points of degree $8$.
+
+\subsection{Narrowing to five degree profiles}\label{sec:profiles}
+
+\begin{proposition}\label{prop:profiles}
+Any $38$-block $(61,11,2)$-covering satisfies $a \in \{9,10,11,12\}$, and its point-degree distribution $(f_6,f_7,f_8,f_9)$ must be one of the five profiles in Table~\ref{tab:profiles}. Moreover, $t_j \le 3$ whenever $a \le 11$, while for $a = 12$ there are $1, 2,$ or $3$ blocks with $t_j = 4$, their $4$-sets of low points are pairwise disjoint, and all three degree-$8$ points lie in every $4$-low-point block.
+\end{proposition}
+
+\begin{proof}
+Since $t_j \le 4$, fixing $x \in L$ gives $a + 5 = \sum_{B_j \ni x} t_j \le 24$, so $a \le 19$. From~\eqref{eq:moments} and $t(t-1) \le 2t + 4\mathbf{1}_{t=4}$, we get $4N_4 \ge a(a-13)$. For $15 \le a \le 19$, every $4$-low-point block has $a - 4 \ge 11 \ge 7$ external low points, so $d \ge 3$, giving
+\[
+  3\lceil a(a-13)/4 \rceil \le 3N_4 \le \lfloor a/4 \rfloor (a - 9).
+\]
+For $a = 15,16,17,18,19$, the left-hand sides are $24,36,51,69,87$ whereas the right-hand sides are $18,28,32,36,40$, impossible.
+
+If $a = 14$ ($E = 5$), then $N_4 \ge 4$. Two $4$-low-point blocks sharing a low point must have disjoint $H$-sets, requiring at least $3 + 3 = 6 > E$ units of excess. Hence all $N_4 \ge 4$ blocks have pairwise disjoint $4$-sets of low points, requiring $16 > 14$ low points.
+
+If $a = 13$ ($E = 4$), the same disjointness argument bounds $q = N_4 \le 3$. Every $x \in L$ satisfies $\sum_{B_j \ni x} (3 - t_j) = 0$: points outside $4$-low-point blocks lie in six $3$-low-point blocks, while points in a $4$-low-point block lie in one $4$-, four $3$-, and one $2$-low-point block. Hence there are no $1$-low-point blocks, $2q$ two-low-point blocks, and $(78 - 8q)/3$ three-low-point blocks, forcing $q \in \{0,3\}$. If $q = 0$, outsiders meet low points in groups of $3$, impossible since $3 \nmid 13$. If $q = 3$, any outsider attending all three $4$-low-point blocks meets $12$ low points and would need a $1$-low-point block for the $13$th. Thus each outsider attends at most $2$ of the $3$ blocks, yielding $\sum d \le 2E = 8 < 9$, a contradiction. Therefore $9 \le a \le 12$.
+
+For $a \in \{10,11\}$, we have $E = 1$ (with $R = 6 \ge 5$) and $E = 2$ (with $R = 7$), both incompatible with Table~\ref{tab:four_local} and Lemma~\ref{lem:parity_d0}, so $t_j \le 3$.
+
+Finally, suppose $a = 12$ ($E = 3$). If $t_j \le 3$ for all blocks, then every $x \in L$ satisfies $\sum_{B_j \ni x} (3 - t_j) = 1$, so it lies in one $2$-low-point block and five $3$-low-point blocks; the $2$-low-point blocks form a perfect matching $M$ on $K_{12}$ and the $20$ three-low-point blocks decompose $K_{12} - M$ into triangles. By single-point growth from the $36$ skeletons for $a = 11$ (independently checked by enumerating all $115{,}200$ labeled triangle decompositions of $K_{12} - M$), there are exactly $5$ non-isomorphic orbits. In every orbit, the Lean check \texttt{Cover61.Layers.twelve\_has\_quad} exhibits a $3$-low-point block (with $8$ empty outsider seats) that participates in \emph{zero} exact partitions of $L$ into blocks—an immediate contradiction. Thus $a = 12$ must contain at least one $4$-low-point block. Each such block has $R = 8$ external low points, so $d = E = 3$, and Table~\ref{tab:four_local} forces its $H$-set to contain all three degree-$8$ points. Consequently, no two $4$-low-point blocks can share a low point (which would otherwise meet the degree-$8$ points twice), so there are $1, 2,$ or $3$ pairwise disjoint $4$-low-point blocks.
+\end{proof}
+
+\begin{table}[t]
+\centering
+\caption{The five surviving degree profiles and $215$ low-point skeletons for a hypothetical $38$-block $(61,11,2)$-covering.}
+\label{tab:profiles}
+\small
+\begin{tabular}{@{}rrrrccrr@{}}
+\toprule
+$a = f_6$ & $f_7$ & $f_8$ & $f_9$ & $\max_j t_j$ & Skeletons & Instances & Remaining after Lean \\
+\midrule
+$9$  & $52$ & $0$ & $0$ & $3$ & $50$ & $50$ & $28$ \\
+$10$ & $50$ & $1$ & $0$ & $3$ & $65$ & $65$ & $9$  \\
+$11$ & $48$ & $2$ & $0$ & $3$ & \multirow{2}{*}{$36$} & \multirow{2}{*}{$72$} & \multirow{2}{*}{$2$} \\
+$11$ & $49$ & $0$ & $1$ & $3$ & & & \\
+$12$ & $46$ & $3$ & $0$ & $4$ & $64$ & $64$ & $6$  \\
+\midrule
+\textbf{Total} & & & & & $\mathbf{215}$ & $\mathbf{251}$ & $\mathbf{45}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Exhaustive Classification of the 215 Low-Point Skeletons}\label{sec:skeletons}
+
+A \emph{low-point skeleton} is a tuple $r : \mathrm{Fin}\,38 \to \mathcal{P}(\mathrm{Fin}\,a)$ recording the labeled low points in each of the $38$ blocks (empty sets and repeated singletons allowed). A covering $\mathcal{B}$ \emph{realizes} $r$ if there exist an injection $p : \mathrm{Fin}\,a \hookrightarrow V$ onto $L$ and a permutation $e \in S_{38}$ such that $\{x \in \mathrm{Fin}\,a : p(x) \in B_{e(j)}\} = r(j)$ for every $j$. For any fixed low point, letting $Q, T, D, S$ denote the numbers of $4$-, $3$-, $2$-, and $1$-low-point blocks containing it, incidence and pair counting give
+\begin{equation}\label{eq:sk_deg}
+  Q + T + D + S = 6, \qquad 3Q + 2T + D = a - 1, \qquad D + 2S = 13 - a + Q.
+\end{equation}
+
+\paragraph{Base layer ($a = 9$).}
+Here $Q = 0$, so any low point lying in $j$ triples lies in $8 - 2j$ pairs and $j - 2$ singletons, forcing $2 \le j \le 4$. Conversely, the set of triples uniquely determines all remaining blocks up to permutation. Growing pairwise edge-disjoint triple packings on $9$ points and reducing by $S_9$ isomorphism produces $2, 11, 20, 11, 4, 1, 1$ orbits for $6$ to $12$ triples, totaling $50$ skeletons (verified exhaustively in Lean by \texttt{Cover61.nine\_catalogue}, and cross-checked by full $9!$ orbit summation).
+
+\paragraph{Inductive growth ($a = 10, 11, 12$).}
+Deleting one low point from an $a$-point skeleton affects exactly $6$ blocks whose remaining nonempty intersections with the other $a - 1$ low points form an exact partition of those $a - 1$ points (choosing the deleted point inside a $4$-low-point block reduces the count of $4$-low-point blocks by exactly $1$). Reversing this operation from the parent layer, testing all exact partitions of size $\le 6$ (padding with empty blocks to $6$), and certifying a point permutation matching the blocks of size $\ge 3$ to a canonical representative uniquely determines the full $38$-block skeleton (missing pairs force $2$-blocks, remaining degree deficits force $1$-blocks, and empty blocks pad to $38$). Lean verifies the soundness and exhaustiveness of this growth step via \texttt{Cover61.Growth.checked\_sound} and \texttt{induction\_step}, producing $65$ skeletons for $a=10$, $36$ for $a=11$, and $22 + 23 + 19 = 64$ for $a=12$ (with $1,2,3$ four-low-point blocks, respectively), for a grand total of $215$ skeletons and $251$ degree-profile instances (\texttt{Cover61.cover\_catalogue}).
+
+As an independent double check, viewing the $2$-low-point blocks as edges and marking the $4$-low-point groups yields $134$ starting graphs for $a \in \{10,11,12\}$ via~\eqref{eq:sk_deg}, whose complementary edges decompose into triangles across $170{,}203$ search nodes; summing orbit sizes matches the labeled decomposition count on every graph and reproduces the identical $215$ skeletons.
+
+\paragraph{Immediate Lean elimination of 170 skeletons.}
+Inside the Lean~4 kernel, simple partition obstructions (a block with positive remaining capacity appearing in no valid outsider partition) eliminate $105$ skeletons, weighted block-pricing certificates (\texttt{Cover61.Weighted.exclude}) eliminate $64$ skeletons, and Theorem~\ref{thm:affine} below eliminates the affine plane skeleton \texttt{9-49.0}. Hence \texttt{Cover61.cover\_remaining} reduces any hypothetical $38$-block covering to just $45$ explicit skeletons (Table~\ref{tab:profiles}).
+
+\section{Purely Combinatorial Exclusion of the Affine Plane \texorpdfstring{$\AG(2,3)$}{AG(2,3)}}\label{sec:affine}
+
+The unique $12$-triple skeleton for $a = 9$ (indexed \texttt{9-49.0}) is the affine plane $\AG(2,3)$. It resists simple linear pricing due to its large automorphism group, yet admits a remarkably clean parity refutation (fully formalized in Lean as \texttt{Cover61.Affine.excluded}).
+
+\begin{theorem}\label{thm:affine}
+No $38$-block $(61,11,2)$-covering realizes the $\AG(2,3)$ skeleton \texttt{9-49.0}.
+\end{theorem}
+
+\begin{proof}
+The $38$ blocks consist of the $12$ lines of $\AG(2,3)$ (four parallel classes of three disjoint $3$-low-point blocks), $2$ singleton blocks per low point ($18$ total), and $8$ empty blocks. All $52$ outsiders have degree $7$. Each outsider selects pairwise disjoint lines (hence from a single parallel class) and covers the remaining low points by singletons; it must select at least one line (since $9 > 7$). Partition the $52$ outsiders into types $T, D, S$ according to whether they select $3, 2,$ or $1$ lines (and hence $4, 2,$ or $0$ empty blocks), with counts $x, y, z$. Counting outsiders and the $12 \times 8 = 96$ outsider seats on the $12$ lines gives
+\[
+  x + y + z = 52, \qquad 3x + 2y + z = 96 \implies 2x + y = 44,\quad z = 8 + x.
+\]
+Fix a parallel class with $X$ points of type $T$ and $Y$ of type $D$. For any line $L$ in this class, let $s_L$ be the number of $S$-outsiders selecting $L$ and $d_L$ the number of $D$-outsiders omitting $L$. Counting the $8$ seats on $L$ gives $s_L - d_L = 8 - X - Y$. Crucially, we cannot have both $s_L > 0$ and $d_L > 0$: an $S$-outsider on $L$ uses singletons only off $L$ and $0$ empty blocks, whereas a $D$-outsider omitting $L$ uses the other two lines and singletons only on $L$, so they would never meet. Thus any class containing an $S$-outsider has $d_L = 0$ on all three lines (so $Y = 0$) and equal positive $s_L = 8 - X$. If $x = 0$, this gives $z \ge 3 \cdot 8 = 24$, contradicting $z = 8$. Hence $x > 0$, and every $T$-outsider must share a parallel class with every $S$-outsider (they can only meet on lines, as $T$ uses no singletons and $S$ uses no empty blocks). Calling this common direction \emph{horizontal}, we obtain $z = 3(8 - x)$, which with $z = 8 + x$ forces $x = 4$, $z = 12$, $y = 36$: there are $4$ points of type $S$ on each horizontal line, and each of the $9$ non-horizontal lines is omitted by exactly $4$ points of type $D$.
+
+Now count meetings among the $12$ points of type $S$. They meet $3\binom{4}{2} = 18$ times on the three horizontal lines. At each of the $9$ low points, its two singleton blocks hold the $8$ points of type $S$ from the other two horizontal lines, creating at least $2\binom{4}{2} = 12$ unordered $S$--$S$ meetings per low point. Thus the $12$ points of type $S$ experience at least $18 + 9 \cdot 12 = 126$ unordered meetings among themselves, exceeding $\binom{12}{2} = 66$ by at least $60$ unordered excess pairs, i.e., $120$ directed excess degrees. Since their total excess budget by~\eqref{eq:repeat} is $12 \times 10 = 120$, \emph{every} $S$-outsider meets \emph{every} $D$-outsider in \emph{exactly one} block.
+
+Label the two singleton blocks of each low point by $0, 1 \in \F_2$, and coordinatize $\AG(2,3)$ by $\F_3^2$ so that the three horizontal rows are indexed by $i, j, k \in \F_3$ and every non-horizontal line has the form $\{(i,\text{row }1),\,(j,\text{row }2),\,(i+j,\text{row }3)\}$. Fix one $S$-outsider $P$ in row~$1$, one $S$-outsider $Q$ in row~$2$, and let $Z_1, Z_2, Z_3, Z_4$ be the four $S$-outsiders in row~$3$. For any $i, j \in \F_3$, pick a $D$-outsider omitting the non-horizontal line $(i, j, i+j)$, with singleton choices $d_1, d_2, d_3 \in \F_2$ on those three points. Since $P$, $Q$, and $Z_s$ each meet this $D$-outsider exactly once—necessarily on the two points outside their own row—each agrees with $D$ on exactly one of those two bits:
+\[
+  P(j) \oplus d_2 \oplus P(i+j) \oplus d_3 = 1,\quad
+  Q(i) \oplus d_1 \oplus Q(i+j) \oplus d_3 = 1,\quad
+  Z_s(i) \oplus d_1 \oplus Z_s(j) \oplus d_2 = 1.
+\]
+Summing all three equations in $\F_2$ cancels $d_1, d_2, d_3$. Setting $f_s(i) = Q(i) \oplus Z_s(i)$, $g_s(j) = P(j) \oplus Z_s(j)$, and $h(k) = P(k) \oplus Q(k)$, we obtain
+\begin{equation}\label{eq:affine_xor}
+  f_s(i) \oplus g_s(j) \oplus h(i+j) = 1 \qquad (\forall\, i, j \in \F_3).
+\end{equation}
+Fixing $i$ and summing~\eqref{eq:affine_xor} over $j \in \F_3$ yields
+\[
+  f_s(i) = 1 \oplus \bigoplus_{j \in \F_3} g_s(j) \oplus \bigoplus_{k \in \F_3} h(k),
+\]
+which is independent of $i$. Because $Q$ and $Z_s$ can only meet on row~$1$'s singletons, $f_s(i) = 0$ for at least one $i \in \F_3$, hence $f_s \equiv 0$: all four $Z_s$ share the exact same bits as $Q$ on row~$1$. Fixing $i = 0$ and a $D$-outsider on each line $(0, j, j)$, the condition $Z_s(0) \oplus d_1 \oplus Z_s(j) \oplus d_2 = 1$ uniquely determines $Z_s(j)$ for every $j \in \F_3$ as well. Thus all four $Z_s$ choose the exact same $7$ blocks (row~$3$ plus identical singletons on rows~$1$ and~$2$), giving each of them at least $3 \cdot 6 = 18 > 10$ excess meetings, a contradiction.
+\end{proof}
+
+\section{Exact Integer Certificates for the Remaining Instances}\label{sec:certificates}
+
+Excluding the affine plane \texttt{9-49.0} (already proved impossible in Lean by Theorem~\ref{thm:affine}), the remaining $250$ degree-profile instances are refuted by a hierarchy of exact, arbitrary-precision integer certificates. Every certificate rule is proved sound in the Lean~4 kernel, and all $250$ computational exclusions (together with ledger reconciliation against all $251$ instances) are checked in pure integer arithmetic.
+
+\subsection{Personal types, seat equations, anchors, and conflict graphs}
+
+Fix a skeleton and a degree profile. Call blocks with $t_j > 0$ \emph{main blocks} and the remaining $b$ blocks \emph{residual blocks}. An outsider of degree $r$ must select a set $P$ of main blocks partitioning $L$, together with $h = r - |P| \in [0, b]$ residual blocks (and for $a=12$, every degree-$8$ point must select all $4$-low-point blocks). Let $x_{P,r}$ be the count of outsiders of type $(P,r)$. Main block capacities $11 - t_j$ and degree-profile totals yield linear equations in $x_{P,r}$. Since two people sharing $P$ incur at least $|P| - 1$ excess meetings, we have the per-type cap $x_{P,r} \le 1 + \lfloor 10(r-6)/(|P|-1) \rfloor$ (tightened for $a=12$ by reserving $3\max(0,k-1)$ excess for degree-$7$ points using $k$ four-low-point blocks), and the combined cap $\sum_r x_{P,r} \le \max(a - 9, 1 + \lfloor 10/(|P|-1) \rfloor)$.
+
+\begin{itemize}
+  \item \textbf{Signed seat pricing ($205$ instances).} Assigning signed integer weights to the seat and degree equations, greedily filling each partition type in descending score order subject to per-type and combined caps (truncating negative contributions at $0$) bounds the maximum attainable score. Whenever the required score strictly exceeds this bound, the instance is impossible.
+  \item \textbf{Anchored pricing ($4$ instances).} Fixing a single outsider (an \emph{anchor}) refines identical main-block classes by whether the anchor attends them. Any remaining outsider must meet the anchor at least once and deduct excess meetings with the anchor from its budget~\eqref{eq:repeat}. If all completions for a given anchor type violate an integer price, that type and its orbit under skeleton automorphisms are deleted. Across $46$ instances, $371$ anchored pricing steps prune types and refute $4$ entire instances.
+  \item \textbf{Certified conflict graphs ($8$ instances).} For types $i, j$ sharing $g_{ij}$ mandatory main blocks, assume $x_i \ge 1$ and fix one outsider of type~$i$. Dividing~\eqref{eq:repeat} for this outsider by any positive integer $d$ and taking floors yields valid linear inequalities
+  \[
+    \sum_j (x_j - \mathbf{1}_{j=i})\left\lfloor \frac{\max(0, g_{ij} - 1)}{d} \right\rfloor \le \left\lfloor \frac{10(r_i - 6)}{d} \right\rfloor.
+  \]
+  Testing $x_i \ge 1$ or $x_i, x_j \ge 1$ against seat equations, clique bounds $\sum_{i \in C} (K/U_i)x_i \le K$, and interval bounds across $1{,}011$ conditional integer steps certifies vertex deletions and pairwise conflict edges on $8$ hard instances.
+\end{itemize}
+
+\subsection{Quadratic pair-count linearization and orbit-summed Farkas certificates}
+
+For the harder instances we introduce unordered pair variables $y_{ij} = x_i x_j$ ($i \ne j$) and $y_{ii} = \binom{x_i}{2}$ (so $x_i^2 = x_i + 2y_{ii}$), together with excess co-appearance variables $z$ across each block class of size $w$ (bounded between $l = \max(0, s+t-w)$ and $u = \min(s,t)$ per pair). Summing partner seat counts over each block class, per-person floor budgets, integrality cuts $(Z - k)(Z - k - 1) \ge 0$ (for integer linear combinations $Z$ of type counts or single-block counts), Cauchy--Schwarz cuts $w \sum_j Z_j^2 \ge (\sum_j Z_j)^2$, and conflict-clique bounds yields a system $Az = b$, $Gz \le h$, $0 \le z \le U$.
+
+To exploit skeleton symmetries without losing integrality, we sum any hypothetical integer solution $(x, y, z)$ over the entire automorphism group $\Gamma$ (or the stabilizer of a fixed branching condition), merging variables along $\Gamma$-orbits; all right-hand sides and upper bounds scale by $|\Gamma|$, which cancels cleanly in the dual inequality (\texttt{Cover61.Photos.orbit\_price}). Given integer dual vectors $u$ and $v \le 0$ (entrywise nonpositive), setting $c = A^\mathsf{T} u + G^\mathsf{T} v$, the strict integer inequality
+\begin{equation}\label{eq:farkas}
+  b^\mathsf{T} u + h^\mathsf{T} v > \sum_j U_j \max(0, c_j)
+\end{equation}
+contradicts $b^\mathsf{T} u + h^\mathsf{T} v \le z^\mathsf{T} c \le \sum_j U_j \max(0, c_j)$. Exactly $29$ instances are directly refuted by~\eqref{eq:farkas}.
+
+One further instance, \texttt{9-41.0} ($a=9$, nine triples and $11$ residual blocks), is resolved by branching on the count $m$ of outsiders selecting the three disjoint triples $\{1,6,7\}$, $\{2,5,8\}$, $\{3,4,9\}$ and $4$ residual blocks. If $m \ge 5$, choosing $5$ such outsiders and letting $w_j$ be their count in block $j$ gives $\sum_j w_j^2 \le 5(7 + 4 + 10) = 105$, whereas the $3$ triples contribute $3 \cdot 25 = 75$ and the $11$ residual blocks (with $\sum w_j = 20$) contribute at least $3 \cdot 20 - 2 \cdot 11 = 38$ via $(w-1)(w-2) \ge 0$, contradicting $113 \le 105$ (\texttt{Cover61.root\_population\_cap}). Thus $m \in \{0,1,2,3,4\}$. For $m=1$, marking that unique outsider's $4$ residual blocks breaks symmetry among the $11$ residual blocks; all five values of $m$ are refuted by~\eqref{eq:farkas} with positive integer margins $97{,}992{,}379$; $98{,}875{,}991$; $98{,}874{,}550$; $99{,}076{,}144$; and $146{,}209$.
+
+\subsection{Cut capacities, replayable integer trees, and residual-block pricing}
+
+The final $11$ instances are refuted via replayable integer interval trees backed by two structural inequalities and single-block pricing:
+\begin{enumerate}
+  \item \textbf{Cut-capacity bound} (\texttt{Cover61.Cuts.balanced\_capacity}). For a fixed type-count vector, let $D$ be the graph of pairs still requiring a meeting in the $b$ residual blocks. For any subset $X$ of outsiders with total remaining appearances $H_X = bq + s$ ($0 \le s < b$), concavity of $z(11-z)$ forces
+  \begin{equation}\label{eq:cut}
+    |\delta_D(X)| \le (b - s)q(11 - q) + s(q + 1)(10 - q).
+  \end{equation}
+  \item \textbf{Connected-neighborhood bound} (\texttt{Cuts.connected\_neighbors}). Any nonempty $D$-connected set $A$ with remaining degrees $h_i \ge 1$ spans at most $1 + \sum_{i \in A}(h_i - 1)$ residual blocks, which can accommodate at most $11 + 10\sum_{i \in A}(h_i - 1)$ distinct points (including $A$ and all required $D$-neighbors of $A$).
+  \item \textbf{Residual-block integer pricing} (\texttt{Photos.block\_price}). When a leaf fixes all type counts, explicit color-preserving graph isomorphisms reduce $3{,}351$ surviving layouts to $142$ representatives. For each representative, every admissible single residual block composition $(q_i)$ (respecting $\sum q_i = 11$, type sizes, and per-person wasted-seat limits $10h_i - d_i$) is enumerated in exact integers and scored against integer weights for seat equations, uncovered pairs $q_i q_j$, and rounded group-coverage lower bounds; $b$ times the maximum single-block score $P$ is strictly less than the mandatory total score.
+\end{enumerate}
+
+For the hardest instance \texttt{9-37.0}, its externally certified conflict graph yields $121$ maximal compatible support sets; a $120$-split binary tree proved in the Lean~4 kernel (\texttt{Cover61.Supports.\allowbreak Nine37.\allowbreak exhaustive}) verifies that any set of surviving, pairwise-compatible types in that conflict graph is contained in one of these $121$ representatives (while the construction of the conflict graph and the elimination of the $121$ supports are verified by the external integer replay). Of these $121$ supports, $100$ are refuted by integer Farkas certificates~\eqref{eq:farkas} ($93$ in the first round, plus $7$ after adding $\sum_{j \notin T} x_j \ge 1$ multiplied by $x_i \ge 0$ for excluded supports $T$), and the remaining $21$ by replayable integer interval trees totaling $688{,}959$ nodes. Table~\ref{tab:enum} summarizes all $11$ enumeration instances. Together with $205$ seat pricings, $4$ anchored exclusions, $29$ moment certificates, $1$ rooted instance (\texttt{9-41.0}), and $1$ affine plane (\texttt{9-49.0}, Theorem~\ref{thm:affine}), all $251$ instances are accounted for, completing the proof of Theorem~\ref{thm:main}.
+
+\begin{table}[t]
+\centering
+\caption{Summary of the $11$ enumeration instances replayed by the isolated integer certificate verifier.}
+\label{tab:enum}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Instance & Replay tree nodes & Explicit isomorphisms & Residual-block prices \\
+\midrule
+\texttt{9-03.0}      & $1{,}773$   & $57$    & $7$   \\
+\texttt{9-07.0}      & $14{,}432$  & $66$    & $2$   \\
+\texttt{9-14.0}      & $126{,}777$ & $1{,}549$ & $87$  \\
+\texttt{9-16.0}      & $9{,}466$   & $13$    & $8$   \\
+\texttt{9-22.0}      & $16{,}307$  & $27$    & $11$  \\
+\texttt{9-23.0}      & $15{,}572$  & $2$     & $2$   \\
+\texttt{9-37.0}\textsuperscript{a} & $688{,}959$ & $0$ & $0$ \\
+\texttt{10-021-03.0} & $833$       & $21$    & $3$   \\
+\texttt{10-045-02.0} & $3{,}362$   & $1{,}386$ & $12$  \\
+\texttt{11-057-03.0} & $8{,}029$   & $210$   & $8$   \\
+\texttt{11-057-03.1} & $789$       & $20$    & $2$   \\
+\midrule
+\textbf{Total} & $\mathbf{886{,}299}$ & $\mathbf{3{,}351}$ & $\mathbf{142}$ \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\footnotesize
+\textsuperscript{a}Combined with $100$ integer Farkas certificates over $121$ Lean-certified maximal supports.
+\end{table}
+
+\section{Formalization, Verification, and Reproducibility}\label{sec:verification}
+
+The complete verification archive (\texttt{C61-11-2-reviewed.zip}, $711$ files) is publicly archived at \url{https://github.com/XtraSensei/covering-61-11-2}, with archive SHA-256 digest
+\begin{center}
+  \small\texttt{78e7daf13f9a0dd844090af1eedf839a9f3c7551fbdbf2b4ab08061cce122d58}.
+\end{center}
+It comprises two cleanly delineated verification layers:
+
+\begin{enumerate}
+  \item \textbf{Pure Lean~4.36.0 kernel (Mathlib v4.36.0, $240$ \texttt{.lean} files).} Running \texttt{lake build} and \texttt{lake env lean Audit.lean} audits $285$ declarations. Every single audited declaration depends \emph{exclusively} on standard mathematical axioms (\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}); an automated scan of all $240$ Lean source files confirms zero occurrences of \texttt{sorry}, \texttt{admit}, \texttt{axiom}, \texttt{unsafe}, \texttt{implemented\_by}, \texttt{extern}, \texttt{partial}, or \texttt{native\_decide}. Table~\ref{tab:lean} maps each theorem in this paper to its Lean~4 declaration.
+  \item \textbf{Isolated standard-library Python integer replay.} Running \texttt{python -I -B -S integer/verify\_all.py} (isolated mode, no site-packages, no external LP solver, arbitrary-precision integer arithmetic only) cross-matches all $215$ Lean skeleton tables against the certificate inputs preserving all $38$ block indices, verifies all $1830$ pairs of the $39$-block construction, checks computational exclusions for $250$ degree-profile instances ($610$ strict Farkas contradictions, $371$ anchored steps, $1{,}011$ conflict-graph steps, $886{,}299$ proof-tree nodes, $3{,}351$ explicit isomorphisms, and $142$ residual-block integer pricings), and reconciles the $251$-instance ledger by referencing the separate Lean theorem for the affine-plane instance \texttt{9-49.0}. The full isolated replay finishes in $832.5$~seconds on a single logical core ($926.8$~seconds including all $710$ SHA-256 manifest checks).
+\end{enumerate}
+
+\noindent\textbf{Explicit boundary statement.} Lean proves that any hypothetical $38$-block covering must realize one of $45$ specified skeletons (\texttt{Cover61.cover\_remaining}), along with the $39$-block upper bound (\texttt{Cover61.exists39}), all structural reductions (Section~\ref{sec:structure}), the exhaustive $215$-skeleton catalogue (Section~\ref{sec:skeletons}), the $\AG(2,3)$ exclusion (Section~\ref{sec:affine}), the support-containment lemma \texttt{Cover61.Supports.Nine37.exhaustive} for the given conflict graph of \texttt{9-37.0}, and the mathematical soundness of every certificate primitive. The remaining exclusions rely on the external exact-integer verifier: across the full catalogue of $251$ degree-profile instances, the verifier checks computational exclusions for $250$ instances and accounts for the affine-plane instance by reference to the separate Lean theorem. The result $C(61,11,2) = 39$ follows from this combined proof; a single end-to-end Lean theorem \texttt{$\neg \exists B : \mathrm{Family}\ 38,\ \mathrm{IsCover}\ B$} incorporating the $45$ external replays has not yet been assembled.
+
+\begin{table}[t]
+\centering
+\caption{Selected Lean~4 declarations verified in the pure Lean~4.36.0 kernel (axioms: subset of $\{\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}\}$ only).}
+\label{tab:lean}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.44\linewidth}>{\raggedright\arraybackslash}p{0.50\linewidth}@{}}
+\toprule
+Paper result & Lean~4 declaration(s) \\
+\midrule
+Explicit $39$-block upper bound & \texttt{Cover61.exists39}, \texttt{Cover61.extend\_cover} \\
+$t_j \le 5$, $a \le 20$, $g \in \{3,4,5\}$ exclusions & \texttt{Cover61.no\_five\_low\_points}, \texttt{LocalRows.at\_most\_twenty}, \texttt{LatinFive.transversal\_census} \\
+$567$ local $4$-low-point histograms ($43$ prices) & \texttt{LocalRows.FourCase0}--\texttt{FourCase4}, \texttt{FourView.rejected} \\
+$9 \le a \le 12$, five degree profiles, $a=12$ quads & \texttt{Cover61.low\_count\_range}, \texttt{cover\_profiles}, \texttt{Layers.twelve\_has\_quad}, \texttt{twelve\_eights\_in\_quad} \\
+Exhaustive $215$ skeletons and $45$ remaining & \texttt{Cover61.cover\_catalogue}, \texttt{cover\_remaining}, \texttt{remaining\_count} \\
+Affine plane $\AG(2,3)$ exclusion (Thm.~\ref{thm:affine}) & \texttt{Cover61.Affine.excluded}, \texttt{Catalog.s9\_49\_excluded} \\
+$121$-support containment for \texttt{9-37.0} graph & \texttt{Cover61.Supports.Nine37.exhaustive} \\
+Soundness of prices, orbit sums, cuts, trees & \texttt{Prices.sound}, \texttt{Photos.orbit\_price}, \texttt{Cuts.balanced\_capacity}, \texttt{Cuts.connected\_neighbors}, \texttt{Replay.sound}, \texttt{Population.sound} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{Acknowledgments and AI-Assistance Disclosure}
+
+The author thanks the maintainers of \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026} for publicly releasing the explicit $39$-block $(61,11,2)$-covering design and $27$-block $(41,9,2)$-covering design, Arhan Canli (Quantavane)~\cite{Canli2026} for the $27$-block $(41,9,2)$ record, Hossein Farahani for the independent $(61,11,2)$ upper-bound record on The Covering Repository~\cite{AcerbiCR}, and Daniel~M. Gordon and Giovanni Acerbi for maintaining the La Jolla Covering Repository and The Covering Repository.
+
+In keeping with emerging community standards for AI-assisted mathematics, we disclose that large language models (OpenAI GPT and Google Gemini) were used to assist in exploratory case analysis, certificate search and compression, Lean~4 formalization, cross-checking of manuscript drafts, and exposition. The formalized theorems were checked directly by the Lean~4.36.0 kernel and the external exclusions by the standalone arbitrary-precision integer replay suite; the human author assumes full responsibility for the correctness and presentation of this work.
+
+\appendix
+
+\section{Explicit 39-Block \texorpdfstring{$(61,11,2)$}{(61,11,2)}-Covering Design}\label{app:cover39}
+
+For completeness, we reproduce the $39$-block construction from \texttt{Meliwat/covering-hunt}~\cite{Meliwat2026} on $\{1,\dots,61\}$ (subtracting $1$ from each entry recovers the $0$-indexed construction verified in \texttt{Cover61.exists39}):
+
+\begin{center}
+\ttfamily\footnotesize
+\begin{tabular}{@{}r@{\hspace{0.8em}}l@{\hspace{1.8em}}r@{\hspace{0.8em}}l@{}}
+ 1: &  1 11 13 16 17 22 23 43 45 46 60 & 21: &  9 12 13 15 17 26 27 38 55 58 59 \\
+ 2: & 11 15 25 31 32 34 36 47 50 58 60 & 22: & 13 14 17 20 35 36 41 47 49 57 61 \\
+ 3: &  6 12 20 21 28 31 32 43 46 57 59 & 23: &  1  7 15 16 21 30 41 48 56 58 61 \\
+ 4: &  2  3 27 31 32 33 45 48 49 53 56 & 24: &  8 12 18 25 34 41 42 45 51 59 61 \\
+ 5: &  1 16 19 20 24 25 27 34 37 44 57 & 25: &  3  5  8 10 15 20 22 23 51 57 58 \\
+ 6: &  5 18 26 31 32 33 39 48 52 55 56 & 26: &  4  6 14 15 24 28 29 35 44 45 58 \\
+ 7: &  5  9 10 14 25 34 35 43 46 53 55 & 27: & 12 22 23 24 36 39 44 47 52 53 59 \\
+ 8: &  2  4  9 19 22 23 29 37 41 55 61 & 28: &  6  7 22 23 25 26 28 30 34 38 49 \\
+ 9: & 14 18 21 22 23 27 35 40 42 50 54 & 29: &  3 24 26 38 41 43 44 46 50 54 61 \\
+10: &  2  6 15 21 28 33 40 50 53 54 58 & 30: &  9 10 22 23 31 32 33 38 42 48 56 \\
+11: &  2 12 20 33 40 43 46 48 56 57 59 & 31: &  4 14 24 29 31 32 33 35 44 48 56 \\
+12: &  4  7  8 27 29 30 36 43 46 47 51 & 32: &  4 11 18 20 26 29 38 42 53 57 60 \\
+13: &  7  9 20 30 39 45 50 52 54 55 57 & 33: &  2 11 25 33 34 36 47 48 54 56 60 \\
+14: &  2  5  7 10 13 17 18 24 30 42 44 & 34: &  1  4  5 10 12 16 29 49 50 54 59 \\
+15: &  8  9 11 21 24 40 44 49 51 55 60 & 35: &  3  7 11 12 14 19 30 35 37 59 60 \\
+16: &  5 10 19 21 26 36 37 38 40 45 47 & 36: &  5  6 10 11 27 28 39 41 52 60 61 \\
+17: &  6  8 13 17 19 28 37 48 50 51 56 & 37: &  1  7 16 30 31 32 33 40 41 53 61 \\
+18: & 15 18 19 37 39 42 43 46 49 52 58 & 38: &  1  2  8 14 16 26 35 38 39 51 52 \\
+19: &  1  3  6  9 16 18 28 36 42 47 55 & 39: &  3  4 13 17 21 25 29 34 39 40 52 \\
+20: &  8 13 17 19 31 32 33 37 51 53 54 &     & \\
+\end{tabular}
+\end{center}
+
+\begin{thebibliography}{99}
+
+\bibitem{AcerbiCR}
+G.~Acerbi, \emph{The Covering Repository}, \url{https://coveringrepository.com}, snapshot accessed November~26, 2026.
+
+\bibitem{Bose1949}
+R.~C. Bose, A note on Fisher's inequality for balanced incomplete block designs, \emph{Ann. Math. Statist.} \textbf{20} (1949), 619--620.
+
+\bibitem{Canli2026}
+A.~Canli (Quantavane), Record covering design $C(41,9,2) \le 27$, \url{https://quantavane.com/results/coverings/c-41-9-2/}, October~23, 2026.
+
+\bibitem{Farahani2026}
+H.~Farahani, \emph{covering-designs: new covering designs by GPU-parallel weighted local search}, Zenodo, \url{https://doi.org/10.5281/zenodo.23489072}, October 2026 (with $(61,11,2) \le 39$ recorded on The Covering Repository~\cite{AcerbiCR}, October~23, 2026).
+
+\bibitem{Fisher1940}
+R.~A. Fisher, An examination of the different possible solutions of a problem in incomplete blocks, \emph{Ann. Eugenics} \textbf{10} (1940), 52--75.
+
+\bibitem{GordonLJCR}
+D.~M. Gordon, \emph{The La Jolla Combinatorics Repository (LJCR)}, frozen archive (March 2026), \url{https://github.com/dmgordo/LJCR} and \url{https://doi.org/10.5281/zenodo.10779736}.
+
+\bibitem{Horsley2017}
+D.~Horsley, Generalising Fisher's inequality to coverings and packings, \emph{Combinatorica} \textbf{37} (2017), 673--696, \href{https://arxiv.org/abs/1409.0485}{arXiv:1409.0485}.
+
+\bibitem{Meliwat2026}
+\texttt{Meliwat}, \emph{covering-hunt}: explicit covering designs \texttt{C61\_11\_2\_b39.txt} (committed October~17, 2026) and \texttt{C41\_9\_2\_b27.txt}, \url{https://github.com/Meliwat/covering-hunt}.
+
+\bibitem{Schonheim1964}
+J.~Sch\"onheim, On coverings, \emph{Pacific J. Math.} \textbf{14} (1964), 1405--1411.
+
+\end{thebibliography}
+
+\end{document}

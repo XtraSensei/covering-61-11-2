@@ -1,0 +1,26 @@
+Archive SHA-256 78e7daf13f9a0dd844090af1eedf839a9f3c7551fbdbf2b4ab08061cce122d58
+Starting isolated standard-library replay: python -I -B -S integer/verify_all.py
+39 explicit blocks of size 11 cover all 1830 pairs.
+Matched all 215 Lean row tables to certificate input, with all 38 block indices preserved. No two are isomorphic. Matched all 45 remaining row indices.
+Verified 567 histograms with 43 integer prices.
+Verified 610 strict integer contradictions. {'anchor': 371, 'moment': 29, 'rooted': 5, 'seat': 205}
+Reconstructed 371 anchored integer certificates on 46 instances; 4 root exclusions.
+Reconstructed all 8 conflict graphs from 1011 conditional integer prices and interval contradictions.
+Reconstructed bounds and all priced matrix rows for 34 moment/root certificates and the 9-37 support matrix with standard-library integer arithmetic.
+9-37.0: 121 supports, 100 integer Farkas certificates, 21 trees, 688959 nodes.
+9-03.0: 1773 tree nodes, 57 layout maps, 7 representatives.
+9-07.0: 14432 tree nodes, 66 layout maps, 2 representatives.
+9-14.0: 126777 tree nodes, 1549 layout maps, 87 representatives.
+9-16.0: 9466 tree nodes, 13 layout maps, 8 representatives.
+9-22.0: 16307 tree nodes, 27 layout maps, 11 representatives.
+9-23.0: 15572 tree nodes, 2 layout maps, 2 representatives.
+10-021-03.0: 833 tree nodes, 21 layout maps, 3 representatives.
+10-045-02.0: 3362 tree nodes, 1386 layout maps, 12 representatives.
+11-057-03.0: 8029 tree nodes, 210 layout maps, 8 representatives.
+11-057-03.1: 789 tree nodes, 20 layout maps, 2 representatives.
+Total 197340 nodes, 3351 explicit isomorphisms, 142 residual-block prices; prices replayed=True, trees replayed=True.
+All 215 skeletons and 251 degree-profile entries accounted for: {'affine': 1, 'anchor': 4, 'enumeration': 11, 'moment': 29, 'rooted': 1, 'seat': 205}.
+Isolated standard-library replay completed in 832.5 seconds.
+Reconstructed every selected row and bound for 34 exported moment and rooted prices.
+9-37.0: all 121 supports rejected; 100 Farkas certificates and 21 trees with 688959 nodes.
+Archive replay complete. All 710 manifest entries matched. Elapsed 926.8 seconds.
